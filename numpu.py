@@ -96,3 +96,107 @@ drawdown_min = sp.optimize.minimize(drawdown,
 
 drawdown_weight = drawdown_min.x
 drawdown_perc = -drawdown_min.fun
+
+#rolling Sharpe
+
+sharpe_weight_rolling = []
+sharpe_fun_rolling = []
+
+for i in range(1260, 3774):
+    portfolio_df_list = portfolio_df.values.tolist()
+    portfolio_df_list_windowed = portfolio_df_list[i-1260:i]
+    portfolio_df_windowed = pd.DataFrame(portfolio_df_list_windowed)
+    print(i)
+    rolling = scipy.optimize.minimize(sharpe_rate2,
+                            np.array([0,0.5,0.5,0,0]),
+                            args=(portfolio_df_windowed, risk_free),
+                            constraints=cons)
+
+    rw = rolling.x
+    rs = rolling.fun
+    sharpe_weight_rolling.append(rw)
+    sharpe_fun_rolling.append(rs)
+
+sharpe_fun_rolling_df = pd.DataFrame(sharpe_fun_rolling)
+sharpe_weight_rolling_df = pd.DataFrame(sharpe_weight_rolling)
+
+
+
+#rolling drawdown
+
+drawdown_weight_rolling = []
+drawdown_fun_rolling = []
+
+for i in range(1260, 3774):
+    portfolio_df_list = portfolio_df.values.tolist()
+    portfolio_df_list_windowed = portfolio_df_list[i-1260:i]
+    portfolio_df_windowed = pd.DataFrame(portfolio_df_list_windowed)
+    print(i)
+
+    return_asset_windowed = portfolio_df_windowed / portfolio_df_windowed.shift(1) - 1
+
+    rolling = scipy.optimize.minimize(drawdown,
+                            np.array([0,0.5,0.5,0,0]),
+                            args=(return_asset_windowed),
+                            constraints=cons)
+
+    rwdd = rolling.x
+    rdd = rolling.fun
+    drawdown_weight_rolling.append(rwdd)
+    drawdown_fun_rolling.append(rdd)
+
+drawdown_weight_rolling_df = pd.DataFrame(drawdown_weight_rolling)
+drawdown_fun_rolling_df = pd.DataFrame(drawdown_fun_rolling)
+
+
+#Sharpe plotok
+
+ret_asset_select = pd.DataFrame(ret_asset[1260:])
+ret_asset_select = ret_asset_select.reset_index(drop=True)
+sharpe_weight_rolling_df.columns = ["UNG", "XLI", "LQD", "DBB", "DBA"]
+df3 = ret_asset_select.mul(sharpe_weight_rolling_df)
+df3 = df3.sum(axis=1)+1
+
+df3 = pd.DataFrame(df3)
+df3.columns=["Napi hozam"]
+
+sharpe_value = 1000*df3["Napi hozam"].cumprod()
+
+plt.plot(sharpe_value)
+plt.title("Portfólió értékének alakulása Sharpe mutató szerint optimalizált súlyokkal")
+plt.ylabel("USD")
+plt.show()
+
+plt.plot(sharpe_weight_rolling_df)
+lineObjects = plt.plot(sharpe_weight_rolling_df)
+plt.title("Optimális súlyok alakulása")
+plt.legend(iter(lineObjects), ("UNG","XLI","LQD","DBB","DBA"))
+plt.show()
+
+
+#drawdown plotok
+
+ret_asset_select = pd.DataFrame(ret_asset[1260:])
+ret_asset_select = ret_asset_select.reset_index(drop=True)
+drawdown_weight_rolling_df.columns = ["UNG", "XLI", "LQD", "DBB", "DBA"]
+df3 = ret_asset_select.mul(drawdown_weight_rolling_df)
+df3 = df3.sum(axis=1)+1
+
+df3 = pd.DataFrame(df3)
+df3.columns=["Napi hozam"]
+
+drawdown_value = 1000*df3["Napi hozam"].cumprod()
+
+plt.plot(drawdown_value)
+plt.title("Portfólió értékének alakulása Maximum Drawdown szerint optimalizált súlyokkal")
+plt.ylabel("USD")
+plt.show()
+
+plt.plot(drawdown_weight_rolling_df)
+lineObjects = plt.plot(drawdown_weight_rolling_df)
+plt.title("Optimális súlyok alakulása")
+plt.legend(iter(lineObjects), ("UNG","XLI","LQD","DBB","DBA"))
+plt.show()
+
+
+pass
